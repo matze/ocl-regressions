@@ -52,9 +52,15 @@ int main(int argc, char *argv[])
     static const gchar *kernels[] =
     {
         "assign",
+        "two_global_params",
+        "three_global_params",
+        "four_global_params",
         "two_const_params",
         "three_const_params",
         "four_const_params",
+        "two_local_params",
+        "three_local_params",
+        "four_local_params",
         NULL
     };
 
