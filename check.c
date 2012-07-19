@@ -31,11 +31,40 @@ print_check (const gchar *format, int errcode, ...)
         g_print (": Error: %s\n", ocl_error (errcode));
 }
 
+static GList *
+read_kernel_names (const gchar *filename)
+{
+    GList   *names = NULL;
+    FILE    *fp;
+    gchar   *line;
+    GRegex  *regex;
+    GMatchInfo *match_info;
+
+    regex = g_regex_new ("__kernel void ([_A-Za-z][_A-Za-z0-9]*)", 0, 0, NULL);
+    line = g_malloc0 (1024);
+    fp = fopen (filename, "r");
+
+    while (fgets (line, 1024, fp) != NULL) {
+        if (g_regex_match (regex, line, 0, &match_info)) {
+            gchar *kernel_name = g_match_info_fetch (match_info, 1);
+            names = g_list_append (names, kernel_name);
+        }
+    }
+
+    fclose (fp);
+    g_free (line);
+
+
+    g_regex_unref (regex);
+    return names;
+}
+
 int main(int argc, char *argv[])
 {
     OCL *ocl;
     GOptionContext *context;
     GError         *error   = NULL;
+    GList          *kernels;
     int             errcode = CL_SUCCESS;
     cl_program      program;
 
@@ -49,21 +78,6 @@ int main(int argc, char *argv[])
         { NULL }
     };
 
-    static const gchar *kernels[] =
-    {
-        "assign",
-        "two_global_params",
-        "three_global_params",
-        "four_global_params",
-        "two_const_params",
-        "three_const_params",
-        "four_const_params",
-        "two_local_params",
-        "three_local_params",
-        "four_local_params",
-        NULL
-    };
-
     context = g_option_context_new ("");
     g_option_context_add_main_entries (context, entries, NULL);
 
@@ -71,18 +85,24 @@ int main(int argc, char *argv[])
         g_print ("Option parsing failed: %s\n", error->message); 
         return 1;
     }
+
+    kernels = read_kernel_names ("programs.cl");
     
     ocl = ocl_new (first_device, last_device, &errcode);
     print_check ("Initialization", errcode);
 
     program = ocl_program_new_from_file (ocl, "programs.cl", "", &errcode);
-    print_check ("Creating backproject program", errcode);
+    print_check ("Creating `programs.cl`", errcode);
 
-    for (guint i = 0; kernels[i] != NULL; i++) {
-        check_kernel (program, kernels[i], &errcode);
-        print_check ("Creating kernel `%s`", errcode, kernels[i]);
+    for (GList *it = g_list_first (kernels); it != NULL; it = g_list_next (it)) {
+        gchar *name = (gchar *) it->data;
+
+        check_kernel (program, name, &errcode);
+        print_check ("Creating kernel `%s`", errcode, name);
     }
 
     ocl_free (ocl);
+    g_list_foreach (kernels, (GFunc) g_free, NULL);
+
     return 0;
 }
