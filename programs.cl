@@ -57,3 +57,10 @@ __kernel void four_global_params(__global float *g_param_1,
                                  __global float *g_param_4)
 {
 }
+
+__kernel void global_local_constant_params(__global   float *g_param_1,
+                                           __local    float *l_param2,
+                                           __constant float *c_param3,
+                                           __constant float *c_param4)
+{
+}
