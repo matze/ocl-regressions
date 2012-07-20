@@ -86,6 +86,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    /* Check bug with mixed GPUs and more than two __constant parameters */
     kernels = read_kernel_names ("programs.cl");
     
     ocl = ocl_new (first_device, last_device, &errcode);
@@ -99,6 +100,40 @@ int main(int argc, char *argv[])
 
         check_kernel (program, name, &errcode);
         print_check ("Creating kernel `%s`", errcode, name);
+    }
+
+    clReleaseProgram (program);
+
+    /* Check that two different kernel programs can be built if the arguments
+     * stay the same */
+    if (ocl->num_devices > 1) {
+        static const char *source = "\
+#ifdef FIRST\n \
+   __kernel void foo(__global float *arg) { arg[0] = 0.0; }\n\
+   __kernel void bar(__global float *arg) { arg[0] = 1.0; }\n\
+#else\n \
+   __kernel void foo(__global float *arg) { arg[0] = 1.0; }\n\
+   __kernel void bar(__constant float *arg)   { }\n\
+#endif"; 
+
+        cl_kernel  kernel;
+
+        program = clCreateProgramWithSource (ocl->context, 1, (const char **) &source, NULL, &errcode);
+
+        print_check ("Creating program `kernel-definition`", errcode);
+
+        errcode = clBuildProgram (program, 1, &ocl->devices[0], "-D FIRST", NULL, NULL);
+        print_check ("Build program `kernel-definition` for GPU 1", errcode);
+
+        errcode = clBuildProgram (program, 1, &ocl->devices[1], "", NULL, NULL);
+        print_check ("Build program `kernel-definition` for GPU 2", errcode);
+
+        kernel = clCreateKernel (program, "foo", &errcode);
+        print_check ("Created kernel `foo` with same signature", errcode);
+        clReleaseKernel (kernel);
+
+        kernel = clCreateKernel (program, "bar", &errcode);
+        print_check ("Created kernel `bar` with different signature [expect CL_INVALID_KERNEL_DEFINITION]", errcode);
     }
 
     ocl_free (ocl);
