@@ -107,16 +107,16 @@ int main(int argc, char *argv[])
     /* Check that two different kernel programs can be built if the arguments
      * stay the same */
     if (ocl->num_devices > 1) {
+        cl_kernel  kernel;
+
         static const char *source = "\
 #ifdef FIRST\n \
-   __kernel void foo(__global float *arg) { arg[0] = 0.0; }\n\
-   __kernel void bar(__global float *arg) { arg[0] = 1.0; }\n\
+   __kernel void foo(__global float *arg) {}\n\
+   __kernel void bar(__global float *arg) {}\n\
 #else\n \
-   __kernel void foo(__global float *arg) { arg[0] = 1.0; }\n\
-   __kernel void bar(__constant float *arg)   { }\n\
+   __kernel void foo(__global float *arg) {}\n\
+   __kernel void bar(__constant float *arg) {}\n\
 #endif"; 
-
-        cl_kernel  kernel;
 
         program = clCreateProgramWithSource (ocl->context, 1, (const char **) &source, NULL, &errcode);
 
