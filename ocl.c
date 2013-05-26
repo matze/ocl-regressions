@@ -22,22 +22,30 @@ ocl_error (int ocl_errcode)
 static gchar *
 ocl_read_program (const gchar *filename)
 {
-    FILE *fp = fopen (filename, "r");
+    FILE *fp;
+    gsize length;
+    gsize buffer_length;
+    gchar *buffer;
+
+    fp = fopen (filename, "rb");
+
     if (fp == NULL)
         return NULL;
 
     fseek (fp, 0, SEEK_END);
-    const size_t length = ftell (fp);
+    length = ftell (fp);
     rewind (fp);
 
-    gchar *buffer = (gchar *) g_malloc0(length+1);
+    buffer = (gchar *) g_malloc0 (length + 1);
+
     if (buffer == NULL) {
         fclose (fp);
         return NULL;
     }
 
-    size_t buffer_length = fread (buffer, 1, length, fp);
+    buffer_length = fread (buffer, 1, length, fp);
     fclose (fp);
+
     if (buffer_length != length) {
         g_free (buffer);
         return NULL;
@@ -53,10 +61,10 @@ ocl_program_new_from_file (OCL *ocl, const gchar *filename, const gchar *options
     gchar *buffer;
 
     g_return_val_if_fail (ocl != NULL && filename != NULL && ocl_errcode != NULL, NULL);
-    
+
     buffer = ocl_read_program (filename);
 
-    if (buffer == NULL) 
+    if (buffer == NULL)
         return NULL;
 
     program = ocl_program_new_from_source (ocl, buffer, options, ocl_errcode);
@@ -111,7 +119,7 @@ get_platform (gchar *prefered_platform)
         clGetPlatformInfo (platforms[i], CL_PLATFORM_VENDOR, 256, result, NULL);
         if (g_strstr_len (result, -1, prefered_platform) != NULL) {
             platform = platforms[i];
-            break; 
+            break;
         }
     }
 
@@ -173,7 +181,7 @@ ocl_new (guint from, guint to, int *ocl_errcode)
     return ocl;
 }
 
-void 
+void
 ocl_free (OCL *ocl)
 {
     for (int i = 0; i < ocl->num_devices; i++)
