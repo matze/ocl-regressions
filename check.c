@@ -41,8 +41,14 @@ read_kernel_names (const gchar *filename)
     GMatchInfo *match_info;
 
     regex = g_regex_new ("__kernel void ([_A-Za-z][_A-Za-z0-9]*)", 0, 0, NULL);
-    line = g_malloc0 (1024);
     fp = fopen (filename, "r");
+
+    if (fp == NULL) {
+        g_print ("Warning: could not open `%s'\n", filename);
+        return NULL;
+    }
+
+    line = g_malloc0 (1024);
 
     while (fgets (line, 1024, fp) != NULL) {
         if (g_regex_match (regex, line, 0, &match_info)) {
@@ -53,9 +59,8 @@ read_kernel_names (const gchar *filename)
 
     fclose (fp);
     g_free (line);
-
-
     g_regex_unref (regex);
+
     return names;
 }
 
