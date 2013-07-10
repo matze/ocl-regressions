@@ -124,7 +124,6 @@ int main(int argc, char *argv[])
 #endif"; 
 
         program = clCreateProgramWithSource (ocl->context, 1, (const char **) &source, NULL, &errcode);
-
         print_check ("Creating program `kernel-definition`", errcode);
 
         errcode = clBuildProgram (program, 1, &ocl->devices[0], "-D FIRST", NULL, NULL);
@@ -139,6 +138,49 @@ int main(int argc, char *argv[])
 
         kernel = clCreateKernel (program, "bar", &errcode);
         print_check ("Created kernel `bar` with different signature [expect CL_INVALID_KERNEL_DEFINITION]", errcode);
+
+        clReleaseProgram (program);
+    }
+
+    /* Check AMD bug. In the driver version as of now (1084.4) you cannot build
+     * the program individually for each device. Upon kernel execution the
+     * program is invalid for the first device as shown below. */
+    if (ocl->num_devices > 1) {
+        cl_kernel kernel;
+        cl_event event;
+
+        size_t work_size[] = { 1024, 1024 };
+        static const char *source = "__kernel void amd_bug(void) {}";
+
+        program = clCreateProgramWithSource (ocl->context, 1, (const char **) &source, NULL, &errcode);
+        print_check ("Creating program `amd_bug`", errcode);
+
+        errcode = clBuildProgram (program, 1, &ocl->devices[0], "-DD=1", NULL, NULL);
+        print_check ("Build program for both GPU 1", errcode);
+
+        errcode = clBuildProgram (program, 1, &ocl->devices[1], "-DD=2", NULL, NULL);
+        print_check ("Build program for both GPU 2", errcode);
+
+        kernel = clCreateKernel (program, "amd_bug", &errcode);
+        print_check ("Created kernel `amd_bug'", errcode);
+
+        errcode = clEnqueueNDRangeKernel (ocl->cmd_queues[0], kernel,
+                                          2, NULL, work_size, NULL,
+                                          0, NULL, &event);
+
+        print_check ("Started kernel `amd_bug' on queue 0 [expect CL_INVALID_PROGRAM_EXECUTABLE]", errcode);
+        clWaitForEvents (1, &event);
+
+        errcode = clEnqueueNDRangeKernel (ocl->cmd_queues[1], kernel,
+                                          2, NULL, work_size, NULL,
+                                          0, NULL, &event);
+
+        print_check ("Started kernel `amd_bug' on queue 1 [expect CL_INVALID_PROGRAM_EXECUTABLE]", errcode);
+        clWaitForEvents (1, &event);
+
+        clReleaseEvent (event);
+        clReleaseKernel (kernel);
+        clReleaseProgram (program);
     }
 
     ocl_free (ocl);
